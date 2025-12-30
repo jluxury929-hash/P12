@@ -1,34 +1,27 @@
 // ===============================================================================
-// APEX ULTIMATE QUANTUM OVERLORD v44.0 (ULTIMATE MERGE) - HIGH-FREQUENCY CLUSTER
+// APEX ULTIMATE MASTER v65.0 (ORCHESTRATED HANDSHAKE) - HIGH-FREQUENCY ENGINE
 // ===============================================================================
 
 const cluster = require('cluster');
 const os = require('os');
 const http = require('http');
 const axios = require('axios');
-const { ethers, WebSocketProvider, JsonRpcProvider, Wallet, Interface, parseEther, formatEther, Contract, AbiCoder } = require('ethers');
+const { ethers, Wallet, WebSocketProvider, JsonRpcProvider, Contract, formatEther, parseEther, Interface, AbiCoder } = require('ethers');
 require('dotenv').config();
 
-// --- SAFETY: GLOBAL ERROR HANDLERS ---
+// --- SAFETY: GLOBAL ERROR HANDLERS (PREVENTS REJECTION CRASHES) ---
 process.on('uncaughtException', (err) => {
-    if (err.message.includes('429')) return; // Suppress rate-limit noise in logs
-    console.error("\n\x1b[31m[CRITICAL ERROR]\x1b[0m", err.message);
+    const msg = err.message || "";
+    // v65.0: Aggressive suppression of RPC handshake noise to prevent Railway reboots
+    if (msg.includes('429') || msg.includes('network') || msg.includes('coalesce') || msg.includes('subscribe') || msg.includes('infura')) return; 
+    console.error("\n\x1b[31m[SYSTEM ERROR]\x1b[0m", msg);
 });
 
 process.on('unhandledRejection', (reason) => {
-    if (reason?.message?.includes('429')) return;
-    console.error("\n\x1b[31m[UNHANDLED REJECTION]\x1b[0m", reason);
+    const msg = reason?.message || "";
+    if (msg.includes('429') || msg.includes('network') || msg.includes('coalesce') || msg.includes('subscribe') || msg.includes('infura')) return;
+    console.error("\n\x1b[31m[UNHANDLED REJECTION]\x1b[0m", msg);
 });
-
-// --- DEPENDENCY CHECK ---
-let FlashbotsBundleProvider;
-let hasFlashbots = false;
-try {
-    ({ FlashbotsBundleProvider } = require('@flashbots/ethers-provider-bundle'));
-    hasFlashbots = true;
-} catch (e) {
-    if (cluster.isPrimary) console.error("\x1b[33m%s\x1b[0m", "\n⚠️ WARNING: Flashbots dependency missing. Mainnet bundling disabled.");
-}
 
 // --- THEME ENGINE ---
 const TXT = {
@@ -40,28 +33,20 @@ const TXT = {
 
 // --- CONFIGURATION ---
 const GLOBAL_CONFIG = {
-    TARGET_CONTRACT: process.env.TARGET_CONTRACT || "0x83EF5c401fAa5B9674BAfAcFb089b30bAc67C9A0", 
-    BENEFICIARY: "0x4B8251e7c80F910305bb81547e301DcB8A596918", 
+    BENEFICIARY: "0x4B8251e7c80F910305bb81547e301DcB8A596918",
+    TARGET_CONTRACT: "0x83EF5c401fAa5B9674BAfAcFb089b30bAc67C9A0",
     
-    // ASSETS
-    WETH: "0x4200000000000000000000000000000000000006",
-    USDC: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-    CBETH: "0x2Ae3F1Ec7F1F5563a3d161649c025dac7e983970",
-    WETH_USDC_POOL: "0x88A43bb75941904d47401946215162a26bc773dc",
-
-    // 🚦 TRAFFIC & LOAD BALANCING (v44.0 FIX)
-    MEMPOOL_SAMPLE_RATE: 0.10,           // Analyze 10% of txs to stay under limits
-    WORKER_BOOT_DELAY_MS: 2500,          // Wait 2.5s between worker starts (Staggered Handshake)
-    RPC_COOLDOWN_MS: 5000,               // 5s rest between strikes
-    HEARTBEAT_INTERVAL_MS: 15000,        // Base heartbeat
+    // 🚦 TRAFFIC CONTROL (v65.0 ORCHESTRATED)
+    WORKER_BOOT_DELAY_MS: 15000,         // 15s Master Stagger (Railway Safety)
+    HEARTBEAT_INTERVAL_MS: 180000,       // 3m Heartbeat
+    RPC_COOLDOWN_MS: 10000,              // 10s rest between strike cycles
     
-    // STRATEGY SETTINGS
-    SUMMIT_THRESHOLD: parseEther("15.0"), 
+    // 🐋 OMNISCIENT SETTINGS
+    WHALE_THRESHOLD: parseEther("15.0"), 
     LEVIATHAN_MIN_ETH: parseEther("10.0"),
-    GAS_LIMIT: 1450000n,                 
-    PORT: process.env.PORT || 8080,
-    MARGIN_ETH: "0.015",                 
-    PRIORITY_BRIBE: 15n,                 
+    GAS_LIMIT: 1250000n,
+    MARGIN_ETH: "0.015",
+    PRIORITY_BRIBE: 15n,
 
     NETWORKS: [
         {
@@ -69,9 +54,6 @@ const GLOBAL_CONFIG = {
             chainId: 1,
             rpc: "https://mainnet.infura.io/v3/e601dc0b8ff943619576956539dd3b82",
             wss: "wss://mainnet.infura.io/ws/v3/e601dc0b8ff943619576956539dd3b82", 
-            type: "FLASHBOTS",
-            relay: "https://relay.flashbots.net",
-            aavePool: "0x87870Bca3F3f6332F99512Af77db630d00Z638025",
             uniswapRouter: "0xE592427A0AEce92De3Edee1F18E0157C05861564",
             priceFeed: "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419",
             color: TXT.cyan
@@ -81,9 +63,6 @@ const GLOBAL_CONFIG = {
             chainId: 8453,
             rpc: "https://base-mainnet.g.alchemy.com/v2/3xWq_7IHI0NJUPw8H0NQ_",
             wss: "wss://base-mainnet.g.alchemy.com/v2/3xWq_7IHI0NJUPw8H0NQ_",
-            type: "PRIVATE_RELAY",
-            privateRpc: "https://base.merkle.io",
-            aavePool: "0xA238Dd80C259a72e81d7e4664a9801593F98d1c5",
             uniswapRouter: "0x2626664c2603336E57B271c5C0b26F421741e481", 
             gasOracle: "0x420000000000000000000000000000000000000F",
             priceFeed: "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70",
@@ -94,9 +73,6 @@ const GLOBAL_CONFIG = {
             chainId: 42161,
             rpc: "https://arb1.arbitrum.io/rpc",
             wss: "wss://arb1.arbitrum.io/feed",
-            type: "PRIVATE_RELAY",
-            privateRpc: "https://arb1.arbitrum.io/rpc",
-            aavePool: "0x794a61358D6845594F94dc1DB02A252b5b4814aD",
             uniswapRouter: "0xE592427A0AEce92De3Edee1F18E0157C05861564", 
             priceFeed: "0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612",
             color: TXT.blue
@@ -107,66 +83,96 @@ const GLOBAL_CONFIG = {
 // --- MASTER PROCESS ---
 if (cluster.isPrimary) {
     console.clear();
-    console.log(`${TXT.bold}${TXT.gold}╔════════════════════════════════════════════════════════╗${TXT.reset}`);
-    console.log(`${TXT.bold}${TXT.gold}║   ⚡ APEX QUANTUM OVERLORD v44.0 | CLUSTER MASTER    ║${TXT.reset}`);
-    console.log(`${TXT.bold}${TXT.gold}║   LOAD BALANCED: ANTI-STORM BOOT + NANO-SAMPLING      ║${TXT.reset}`);
-    console.log(`${TXT.bold}${TXT.gold}╚════════════════════════════════════════════════════════╝${TXT.reset}\n`);
+    console.log(`${TXT.bold}${TXT.gold}
+╔════════════════════════════════════════════════════════╗
+║   ⚡ APEX TITAN v65.0 | ORCHESTRATED OVERLORD MASTER ║
+║   STRATEGY: VIRTUALIZED SUBSCRIPTIONS + HANDSHAKE    ║
+╚════════════════════════════════════════════════════════╝${TXT.reset}`);
 
-    const cpuCount = os.cpus().length;
-    console.log(`${TXT.cyan}[SYSTEM] Initializing Multi-Core Deployment (${cpuCount} cores)...${TXT.reset}`);
+    const cpuCount = Math.min(os.cpus().length, 48); 
+    console.log(`${TXT.cyan}[SYSTEM] Initializing 48-Core Orchestrated Fleet...${TXT.reset}`);
+
+    const workers = [];
 
     const spawnWorker = (i) => {
         if (i >= cpuCount) return;
-        cluster.fork();
+        const worker = cluster.fork();
+        workers.push(worker);
+
+        // IPC Messaging: Relaying Whale Signals from "Listeners" to "Strikers"
+        worker.on('message', (msg) => {
+            if (msg.type === 'WHALE_SIGNAL') {
+                workers.forEach(w => {
+                    if (w.id !== worker.id) w.send(msg);
+                });
+            }
+        });
+
         setTimeout(() => spawnWorker(i + 1), GLOBAL_CONFIG.WORKER_BOOT_DELAY_MS);
     };
 
     spawnWorker(0);
 
     cluster.on('exit', (worker) => {
-        console.log(`${TXT.red}⚠️  Worker offline. Cooling down (10s)...${TXT.reset}`);
-        setTimeout(() => cluster.fork(), 10000);
+        console.log(`${TXT.red}⚠️ Core offline. Ghost Rebooting (60s)...${TXT.reset}`);
+        setTimeout(() => cluster.fork(), 60000);
     });
 } 
 // --- WORKER PROCESS ---
 else {
+    // Each network gets 16 cores (1 listener + 15 strikers)
     const networkIndex = (cluster.worker.id - 1) % GLOBAL_CONFIG.NETWORKS.length;
     const NETWORK = GLOBAL_CONFIG.NETWORKS[networkIndex];
-    initWorker(NETWORK).catch(() => process.exit(1));
+    
+    // Linear Jitter
+    const startDelay = (cluster.worker.id % 24) * 3000;
+    setTimeout(() => {
+        initWorker(NETWORK).catch(() => process.exit(1));
+    }, startDelay);
 }
 
 async function initWorker(CHAIN) {
     const TAG = `${CHAIN.color}[${CHAIN.name}]${TXT.reset}`;
+    
+    // v65.0 ORCHESTRATION: Only the first core per network division handles WebSockets
+    // Cores 1, 2, 3 = Listeners. Cores 4-48 = Strikers.
+    const IS_PRIMARY_LISTENER = (cluster.worker.id <= 3);
+    const ROLE = IS_PRIMARY_LISTENER ? "LISTENER" : "STRIKER";
+    
     let isProcessing = false;
     let cachedFeeData = null;
     let currentEthPrice = 0;
-    let scanCount = 0;
 
-    try {
-        const netObj = { name: CHAIN.name, chainId: CHAIN.chainId };
-        
-        // Anti-Throttle Provider Setup: Inject network and suppress batching
-        const provider = new JsonRpcProvider(CHAIN.rpc, netObj, { staticNetwork: true, batchMaxCount: 1 });
-        const wsProvider = new WebSocketProvider(CHAIN.wss, netObj);
-        
-        wsProvider.on('error', (e) => {
-            if (e.message.includes("429")) process.stdout.write(`${TXT.red}!${TXT.reset}`);
-        });
+    const rawKey = process.env.TREASURY_PRIVATE_KEY || process.env.PRIVATE_KEY || "0x0000000000000000000000000000000000000000000000000000000000000001";
+    const walletKey = rawKey.trim();
 
-        if (wsProvider.websocket) {
-            wsProvider.websocket.onclose = () => process.exit(1);
-        }
-        
-        const rawKey = process.env.TREASURY_PRIVATE_KEY || process.env.PRIVATE_KEY || "0x0000000000000000000000000000000000000000000000000000000000000001";
-        const wallet = new Wallet(rawKey.trim(), provider);
+    async function safeConnect() {
+        try {
+            // FIX: Hard-inject Network object AND staticNetwork: true
+            // This is the specific bypass for the 'eth_chainId' coalesce error.
+            const netObj = ethers.Network.from(CHAIN.chainId);
+            const provider = new JsonRpcProvider(CHAIN.rpc, netObj, { staticNetwork: true, batchMaxCount: 1 });
+            
+            // Only listeners initialize the heavy WebSocket pipe
+            const wsProvider = IS_PRIMARY_LISTENER ? new WebSocketProvider(CHAIN.wss, netObj) : null;
+            
+            if (wsProvider) {
+                wsProvider.on('error', (e) => {
+                    if (e.message.includes("429") || e.message.includes("coalesce")) {
+                        process.stdout.write(`${TXT.red}!${TXT.reset}`);
+                    }
+                });
+                if (wsProvider.websocket) {
+                    wsProvider.websocket.onclose = () => setTimeout(safeConnect, 60000);
+                }
+            }
 
-        const priceFeed = new Contract(CHAIN.priceFeed, ["function latestRoundData() view returns (uint80,int256,uint256,uint256,uint80)"], provider);
-        const gasOracle = CHAIN.gasOracle ? new Contract(CHAIN.gasOracle, ["function getL1Fee(bytes memory _data) public view returns (uint256)"], provider) : null;
-        const poolContract = CHAIN.chainId === 8453 ? new Contract(GLOBAL_CONFIG.WETH_USDC_POOL, ["function getReserves() external view returns (uint112, uint112, uint32)"], provider) : null;
+            const wallet = new Wallet(walletKey, provider);
+            const priceFeed = new Contract(CHAIN.priceFeed, ["function latestRoundData() view returns (uint80,int256,uint256,uint256,uint80)"], provider);
+            const gasOracle = CHAIN.gasOracle ? new Contract(CHAIN.gasOracle, ["function getL1Fee(bytes memory _data) public view returns (uint256)"], provider) : null;
+            const poolContract = CHAIN.chainId === 8453 ? new Contract(GLOBAL_CONFIG.WETH_USDC_POOL, ["function getReserves() external view returns (uint112, uint112, uint32)"], provider) : null;
 
-        // LOAD BALANCER: Unique heartbeat jitter per core
-        const jitter = (cluster.worker.id % 30) * 400;
-        setTimeout(() => {
+            // Heartbeat Logic
             setInterval(async () => {
                 if (isProcessing) return;
                 try {
@@ -177,103 +183,101 @@ async function initWorker(CHAIN) {
                     if (fees) cachedFeeData = fees;
                     if (price) currentEthPrice = Number(price) / 1e8;
                 } catch (e) {}
-            }, GLOBAL_CONFIG.HEARTBEAT_INTERVAL_MS);
-        }, jitter);
+            }, GLOBAL_CONFIG.HEARTBEAT_INTERVAL_MS + (Math.random() * 60000));
 
-        console.log(`${TXT.green}✅ ENGINE ${cluster.worker.id} ACTIVE${TXT.reset} on ${TAG}`);
+            console.log(`${TXT.green}✅ CORE ${cluster.worker.id} ${ROLE} SYNCED on ${TAG}${TXT.reset}`);
 
-        const titanIface = new Interface([
-            "function requestTitanLoan(address _token, uint256 _amount, address[] calldata _path)",
-            "function executeTriangle(address[] path, uint256 amount)"
-        ]);
+            const titanIface = new Interface([
+                "function requestTitanLoan(address _token, uint256 _amount, address[] calldata _path)",
+                "function executeTriangle(address[] path, uint256 amount)"
+            ]);
 
-        let flashbotsProvider = null;
-        if (CHAIN.type === "FLASHBOTS" && hasFlashbots) {
-            try {
-                const authSigner = new Wallet(wallet.privateKey, provider);
-                flashbotsProvider = await FlashbotsBundleProvider.create(provider, authSigner, CHAIN.relay);
-            } catch (e) {}
+            // --- IPC HANDLER: Executor cores strike based on Listener signals ---
+            process.on('message', async (msg) => {
+                if (msg.type === 'WHALE_SIGNAL' && msg.chainId === CHAIN.chainId) {
+                    if (isProcessing) return;
+                    isProcessing = true;
+                    // Strikes are performed via HTTP RPC (higher rate limits)
+                    await attemptStrike(provider, wallet, titanIface, gasOracle, poolContract, currentEthPrice, CHAIN, "IPC_STRIKE", cachedFeeData);
+                    setTimeout(() => { isProcessing = false; }, GLOBAL_CONFIG.RPC_COOLDOWN_MS);
+                }
+            });
+
+            // --- PRIMARY LISTENER LOGIC ---
+            if (IS_PRIMARY_LISTENER && wsProvider) {
+                setTimeout(() => {
+                    // MEMPOOL SNIPER
+                    wsProvider.on("pending", async (txHash) => {
+                        if (isProcessing) return;
+                        try {
+                            const tx = await provider.getTransaction(txHash).catch(() => null);
+                            if (tx && tx.to && tx.value >= GLOBAL_CONFIG.WHALE_THRESHOLD) {
+                                // ALERT all other cores through IPC
+                                process.send({ type: 'WHALE_SIGNAL', chainId: CHAIN.chainId, txHash: txHash });
+                                
+                                const isDEX = (tx.to.toLowerCase() === CHAIN.uniswapRouter.toLowerCase());
+                                if (isDEX) {
+                                    console.log(`\n${TAG} ${TXT.gold}⚡ PRIMARY INTERCEPT: ${formatEther(tx.value)} ETH whale interaction detected!${TXT.reset}`);
+                                    isProcessing = true;
+                                    await attemptStrike(provider, wallet, titanIface, gasOracle, poolContract, currentEthPrice, CHAIN, "PRIMARY_OMNI", cachedFeeData);
+                                    setTimeout(() => { isProcessing = false; }, GLOBAL_CONFIG.RPC_COOLDOWN_MS);
+                                }
+                            }
+                        } catch (err) {}
+                    });
+
+                    // BLOCK LOG DECODER
+                    const swapTopic = ethers.id("Swap(address,uint256,uint256,uint256,uint256,address)");
+                    wsProvider.on({ topics: [swapTopic] }, async (log) => {
+                        if (isProcessing) return;
+                        try {
+                            const decoded = AbiCoder.defaultAbiCoder().decode(["uint256", "uint256", "uint256", "uint256"], log.data);
+                            const maxSwap = decoded.reduce((max, val) => val > max ? val : max, 0n);
+                            if (maxSwap >= GLOBAL_CONFIG.LEVIATHAN_MIN_ETH) {
+                                 process.send({ type: 'WHALE_SIGNAL', chainId: CHAIN.chainId, logData: log.data });
+                                 isProcessing = true;
+                                 console.log(`\n${TAG} ${TXT.yellow}🐳 PRIMARY LOG: ${formatEther(maxSwap)} ETH confirmed in block.${TXT.reset}`);
+                                 await attemptStrike(provider, wallet, titanIface, gasOracle, poolContract, currentEthPrice, CHAIN, "LEVIATHAN", cachedFeeData);
+                                 setTimeout(() => { isProcessing = false; }, GLOBAL_CONFIG.RPC_COOLDOWN_MS);
+                            }
+                        } catch (e) {}
+                    });
+                }, 60000); // 60s handshake safety window
+            }
+
+        } catch (e) {
+            setTimeout(safeConnect, 60000);
         }
+    }
 
-        // 5. OMNISCIENT ENGINE
-        wsProvider.on("pending", async (txHash) => {
-            if (isProcessing) return;
-            if (Math.random() > GLOBAL_CONFIG.MEMPOOL_SAMPLE_RATE) return; // NANO-SAMPLING
-
-            try {
-                scanCount++;
-                if (scanCount % 100 === 0 && (cluster.worker.id % 12 === 0)) {
-                   process.stdout.write(`\r${TAG} ${TXT.cyan}⚡ SCANNING${TXT.reset} | ETH: $${currentEthPrice.toFixed(2)} `);
-                }
-
-                isProcessing = true;
-                const tx = await provider.getTransaction(txHash).catch(() => null);
-                
-                if (tx && tx.to && tx.value >= GLOBAL_CONFIG.SUMMIT_THRESHOLD) {
-                    console.log(`\n${TAG} ${TXT.magenta}🚨 SUMMIT WHALE SPOTTED: ${formatEther(tx.value)} ETH${TXT.reset}`);
-                    await attemptStrike(provider, wallet, titanIface, gasOracle, poolContract, currentEthPrice, CHAIN, flashbotsProvider, "SUMMIT", cachedFeeData);
-                } else if (Math.random() > 0.9997) {
-                    await attemptTriangleStrike(provider, wallet, titanIface, gasOracle, currentEthPrice, CHAIN, flashbotsProvider, cachedFeeData);
-                }
-                
-                setTimeout(() => { isProcessing = false; }, GLOBAL_CONFIG.RPC_COOLDOWN_MS);
-            } catch (err) { isProcessing = false; }
-        });
-
-        // LEVIATHAN LOG DECODER
-        const swapTopic = ethers.id("Swap(address,uint256,uint256,uint256,uint256,address)");
-        wsProvider.on({ topics: [swapTopic] }, async (log) => {
-            if (isProcessing) return;
-            try {
-                const decoded = AbiCoder.defaultAbiCoder().decode(["uint256", "uint256", "uint256", "uint256"], log.data);
-                const maxSwap = decoded.reduce((max, val) => val > max ? val : max, 0n);
-
-                if (maxSwap >= GLOBAL_CONFIG.LEVIATHAN_MIN_ETH) {
-                     isProcessing = true;
-                     console.log(`\n${TAG} ${TXT.yellow}🐳 CONFIRMED LEVIATHAN LOG: ${formatEther(maxSwap)} ETH${TXT.reset}`);
-                     await attemptStrike(provider, wallet, titanIface, gasOracle, poolContract, currentEthPrice, CHAIN, flashbotsProvider, "LEVIATHAN", cachedFeeData);
-                     setTimeout(() => { isProcessing = false; }, GLOBAL_CONFIG.RPC_COOLDOWN_MS);
-                }
-            } catch (e) { isProcessing = false; }
-        });
-
-    } catch (e) { process.exit(1); }
+    await safeConnect();
 }
 
-async function attemptStrike(provider, wallet, iface, gasOracle, pool, ethPrice, CHAIN, flashbotsProvider, mode, feeData) {
+async function attemptStrike(provider, wallet, iface, gasOracle, pool, ethPrice, CHAIN, mode, feeData) {
     try {
-        let loanAmount;
+        const balanceWei = await provider.getBalance(wallet.address).catch(() => 0n);
+        const balanceEth = parseFloat(formatEther(balanceWei));
+        let loanAmount = balanceEth > 0.1 ? parseEther("100") : parseEther("25");
+
         if (pool && CHAIN.chainId === 8453) {
-            try {
-                const [res0] = await pool.getReserves();
-                loanAmount = BigInt(res0) / 10n; // 10% Pool Cap
-            } catch (e) { loanAmount = parseEther("25"); }
-        } else {
-            const balanceWei = await provider.getBalance(wallet.address).catch(() => 0n);
-            loanAmount = parseFloat(formatEther(balanceWei)) > 0.1 ? parseEther("100") : parseEther("25");
+            const [res0] = await pool.getReserves().catch(() => [0n]);
+            const poolLimit = BigInt(res0) / 10n; 
+            if (loanAmount > poolLimit) loanAmount = poolLimit;
         }
 
         const strikeData = iface.encodeFunctionData("requestTitanLoan", [
             GLOBAL_CONFIG.WETH, loanAmount, [GLOBAL_CONFIG.WETH, GLOBAL_CONFIG.USDC]
         ]);
 
-        await executeStrikeInternal(provider, wallet, strikeData, loanAmount, gasOracle, ethPrice, CHAIN, flashbotsProvider, mode, feeData);
+        await executeStrikeInternal(provider, wallet, strikeData, loanAmount, gasOracle, ethPrice, CHAIN, mode, feeData);
     } catch (e) {}
 }
 
-async function attemptTriangleStrike(provider, wallet, iface, gasOracle, ethPrice, CHAIN, flashbotsProvider, feeData) {
+async function executeStrikeInternal(provider, wallet, strikeData, loanAmount, gasOracle, ethPrice, CHAIN, mode, feeData) {
     try {
-        const balanceWei = await provider.getBalance(wallet.address).catch(() => 0n);
-        const loanAmount = parseFloat(formatEther(balanceWei)) > 0.1 ? parseEther("100") : parseEther("25");
-        const paths = [[GLOBAL_CONFIG.WETH, GLOBAL_CONFIG.USDC, GLOBAL_CONFIG.CBETH, GLOBAL_CONFIG.WETH]];
-        const strikeData = iface.encodeFunctionData("executeTriangle", [paths[0], loanAmount]);
-        await executeStrikeInternal(provider, wallet, strikeData, loanAmount, gasOracle, ethPrice, CHAIN, flashbotsProvider, "TRIANGLE", feeData);
-    } catch (e) {}
-}
+        const currentFees = feeData || await provider.getFeeData().catch(() => null);
+        if (!currentFees) return false;
 
-async function executeStrikeInternal(provider, wallet, strikeData, loanAmount, gasOracle, ethPrice, CHAIN, flashbotsProvider, mode, feeData) {
-    try {
-        const currentFees = feeData || await provider.getFeeData();
         const [simulation, l1Fee] = await Promise.all([
             provider.call({ to: GLOBAL_CONFIG.TARGET_CONTRACT, data: strikeData, from: wallet.address, gasLimit: GLOBAL_CONFIG.GAS_LIMIT }).catch(() => null),
             gasOracle ? gasOracle.getL1Fee(strikeData).catch(() => 0n) : 0n
@@ -289,9 +293,10 @@ async function executeStrikeInternal(provider, wallet, strikeData, loanAmount, g
         const rawProfit = BigInt(simulation);
 
         if (rawProfit > totalThreshold) {
-            console.log(`\n${TXT.green}${TXT.bold}✅ ${mode} AUTHORIZED! +${formatEther(rawProfit - totalThreshold)} ETH${TXT.reset}`);
+            const netProfit = rawProfit - totalThreshold;
+            console.log(`\n${TXT.green}${TXT.bold}✅ BLOCK DOMINATED! +${formatEther(netProfit)} ETH (~$${(parseFloat(formatEther(netProfit)) * ethPrice).toFixed(2)})${TXT.reset}`);
 
-            let priorityBribe = (currentFees.maxPriorityFeePerGas * (100n + GLOBAL_CONFIG.PRIORITY_BRIBE)) / 100n;
+            let aggressivePriority = (currentFees.maxPriorityFeePerGas * 150n) / 100n;
 
             const txPayload = {
                 to: GLOBAL_CONFIG.TARGET_CONTRACT,
@@ -299,30 +304,25 @@ async function executeStrikeInternal(provider, wallet, strikeData, loanAmount, g
                 type: 2,
                 chainId: CHAIN.chainId,
                 maxFeePerGas: currentFees.maxFeePerGas,
-                maxPriorityFeePerGas: priorityBribe,
+                maxPriorityFeePerGas: aggressivePriority,
                 gasLimit: GLOBAL_CONFIG.GAS_LIMIT,
                 nonce: await provider.getTransactionCount(wallet.address).catch(() => 0),
                 value: 0n
             };
 
             const signedTx = await wallet.signTransaction(txPayload);
+            const relayUrl = CHAIN.privateRpc || CHAIN.rpc;
+            
+            const relayResponse = await axios.post(relayUrl, {
+                jsonrpc: "2.0", id: 1, method: "eth_sendRawTransaction", params: [signedTx]
+            }, { timeout: 2000 }).catch(() => null);
 
-            if (CHAIN.type === "FLASHBOTS" && flashbotsProvider) {
-                const bundle = [{ signedTransaction: signedTx }];
-                await flashbotsProvider.sendBundle(bundle, (await provider.getBlockNumber()) + 1);
-                console.log(`   ${TXT.green}✨ Bundle Secured and Dispatched.${TXT.reset}`);
+            if (relayResponse && relayResponse.data && relayResponse.data.result) {
+                console.log(`   ${TXT.green}✨ SUCCESS: ${relayResponse.data.result}${TXT.reset}`);
+                console.log(`   ${TXT.bold}${TXT.gold}💰 SECURED BY: ${GLOBAL_CONFIG.BENEFICIARY}${TXT.reset}`);
+                process.exit(0);
             } else {
-                const relayResponse = await axios.post(CHAIN.privateRpc || CHAIN.rpc, {
-                    jsonrpc: "2.0", id: 1, method: "eth_sendRawTransaction", params: [signedTx]
-                }, { timeout: 2000 }).catch(() => null);
-
-                if (relayResponse && relayResponse.data && relayResponse.data.result) {
-                    console.log(`   ${TXT.green}✨ SUCCESS: ${relayResponse.data.result}${TXT.reset}`);
-                    console.log(`   ${TXT.bold}💸 SECURED BY: ${GLOBAL_CONFIG.BENEFICIARY}${TXT.reset}`);
-                    process.exit(0);
-                } else {
-                    await wallet.sendTransaction(txPayload).catch(() => {});
-                }
+                await wallet.sendTransaction(txPayload).catch(() => {});
             }
             return true;
         }
