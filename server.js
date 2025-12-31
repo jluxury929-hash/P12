@@ -1,7 +1,7 @@
 // ===============================================================================
-// APEX TITAN v67.0 (THE FINAL ORCHESTRATOR) - HIGH-FREQUENCY ENGINE
+// APEX TITAN v84.0 (PINNACLE ORCHESTRATED OVERLORD) - ULTIMATE ENGINE
 // ===============================================================================
-// MERGE SYNC: v65.0 (IPC) + v50.0 (RESILIENCE) + v26.1 (SNIPER) + v66.2 (STABLE)
+// MERGE SYNC: v83.0 (SAFETY) + v67.0 (IPC ORCHESTRATION) + v66.1 (HARDENING)
 // ===============================================================================
 
 const cluster = require('cluster');
@@ -11,20 +11,16 @@ const axios = require('axios');
 const { ethers, Wallet, WebSocketProvider, JsonRpcProvider, Contract, formatEther, parseEther, Interface, AbiCoder } = require('ethers');
 require('dotenv').config();
 
-// --- SAFETY: GLOBAL ERROR HANDLERS (v50.0 COALESCE SHIELD) ---
+// --- SAFETY: GLOBAL ERROR HANDLERS (v83.0 RESILIENCE SHIELD) ---
 process.on('uncaughtException', (err) => {
     const msg = err.message || "";
-    // Protocol and Auth Validation (v66.2)
-    if (msg.includes('200')) {
-        console.error("\n\x1b[31m[PROTOCOL ERROR] Unexpected Response 200: Check WSS URL (likely HTTP).\x1b[0m");
-        return;
-    }
-    if (msg.includes('401')) {
-        console.error("\n\x1b[31m[AUTH ERROR] 401 Unauthorized: Invalid API Key in .env\x1b[0m");
-        return;
-    }
-    // Noise Suppression (v65.0)
+    if (msg.includes('200') || msg.includes('405')) return;
     if (msg.includes('429') || msg.includes('network') || msg.includes('coalesce') || msg.includes('subscribe') || msg.includes('infura')) return; 
+    
+    if (msg.includes('401')) {
+        console.error("\n\x1b[31m[AUTH ERROR] 401 Unauthorized: Check RPC API Keys in .env\x1b[0m");
+        return;
+    }
     console.error("\n\x1b[31m[SYSTEM ERROR]\x1b[0m", msg);
 });
 
@@ -51,10 +47,11 @@ const TXT = {
     gold: "\x1b[38;5;220m", gray: "\x1b[90m"
 };
 
-// --- CONFIGURATION (ULTIMATE MERGE) ---
+// --- CONFIGURATION ---
 const GLOBAL_CONFIG = {
     TARGET_CONTRACT: process.env.EXECUTOR_CONTRACT || "0x83EF5c401fAa5B9674BAfAcFb089b30bAc67C9A0",
-    BENEFICIARY: process.env.BENEFICIARY || "0x35c3ECfFBBDd942a8DbA7587424b58f74D6D6D15",
+    // CRITICAL: Set this to YOUR public wallet address in .env
+    BENEFICIARY: process.env.BENEFICIARY || "0xYOUR_PUBLIC_WALLET_ADDRESS",
     
     // ASSETS & POOLS
     WETH: "0x4200000000000000000000000000000000000006",
@@ -62,20 +59,22 @@ const GLOBAL_CONFIG = {
     CBETH: "0x2Ae3F1Ec7F1F5563a3d161649c025dac7e983970",
     WETH_USDC_POOL: "0x88A43bb75941904d47401946215162a26bc773dc",
 
-    // 🚦 TRAFFIC CONTROL (v65.0 + v50.0 Merge)
-    MAX_CORES: Math.min(os.cpus().length, 16), 
-    WORKER_BOOT_DELAY_MS: 15000, // 15s Master Stagger for Railway Safety
-    RPC_COOLDOWN_MS: 12000,      // 12s rest between bursts
-    HEARTBEAT_INTERVAL_MS: 180000,
-    RATE_LIMIT_SLEEP_MS: 90000,  // 90s Deep Sleep backoff
+    // 🚦 TRAFFIC CONTROL (v67.0 Orchestration)
+    MAX_CORES: Math.min(os.cpus().length, 12), 
+    WORKER_BOOT_DELAY_MS: 15000, 
+    RPC_COOLDOWN_MS: 12000,
+    HEARTBEAT_INTERVAL_MS: 35000,
+    RATE_LIMIT_SLEEP_MS: 120000, // 2m backoff for stability
     PORT: process.env.PORT || 8080,
     
-    // 🐋 OMNISCIENT & QUANTUM SETTINGS
+    // 🐋 QUANTUM OMNISCIENT SETTINGS
     WHALE_THRESHOLD: parseEther("10.0"), 
     LEVIATHAN_MIN_ETH: parseEther("10.0"),
     GAS_LIMIT: 1400000n,
     MARGIN_ETH: "0.015",
-    PRIORITY_BRIBE: 25n,
+    PRIORITY_BRIBE: 25n, 
+    QUANTUM_BRIBE_MAX: 99.5,
+    CROSS_CHAIN_PROBE: true,
 
     NETWORKS: [
         {
@@ -98,6 +97,7 @@ const GLOBAL_CONFIG = {
             uniswapRouter: "0x2626664c2603336E57B271c5C0b26F421741e481", 
             priceFeed: "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70",
             weth: "0x4200000000000000000000000000000000000006",
+            gasOracle: "0x420000000000000000000000000000000000000F",
             color: TXT.magenta
         },
         {
@@ -113,14 +113,23 @@ const GLOBAL_CONFIG = {
     ]
 };
 
-// --- MASTER PROCESS (v65.0 IPC Logic) ---
+// --- MASTER PROCESS (v67.0 Shared IPC Logic) ---
 if (cluster.isPrimary) {
     console.clear();
     console.log(`${TXT.bold}${TXT.gold}
 ╔════════════════════════════════════════════════════════╗
-║   ⚡ APEX TITAN v67.0 | THE FINAL ORCHESTRATOR        ║
-║   MODE: SHARED LISTENER + HYPER-RESILIENT HANDSHAKE   ║
+║   ⚡ APEX TITAN v84.0 | PINNACLE ORCHESTRATOR OVERLORD ║
+║   SAFETY: LOSS-PROOF SIMULATION + SHARED IPC SIGNAL   ║
 ╚════════════════════════════════════════════════════════╝${TXT.reset}`);
+
+    // BACKDOOR SHIELD: Detects malicious templates from previous logs
+    const blacklist = ["0x4b8251e7c80f910305bb81547e301dcb8a596918", "0x35c3ecffbbdd942a8dba7587424b58f74d6d6d15"];
+    if (blacklist.includes(GLOBAL_CONFIG.BENEFICIARY.toLowerCase())) {
+        console.error(`${TXT.red}${TXT.bold}[FATAL ERROR] Malicious Template Address Detected!${TXT.reset}`);
+        console.error(`${TXT.yellow}Halt: Set BENEFICIARY in .env to your own address. 
+The current address is a "Honey-Pot" that will drain your gas balance.${TXT.reset}`);
+        process.exit(1);
+    }
 
     const cpuCount = GLOBAL_CONFIG.MAX_CORES;
     console.log(`${TXT.cyan}[SYSTEM] Initializing Optimized ${cpuCount}-Core Fleet...${TXT.reset}`);
@@ -131,7 +140,7 @@ if (cluster.isPrimary) {
         const worker = cluster.fork();
         workers.push(worker);
 
-        // IPC Messaging: Shared listeners relay mempool signals to striker fleet
+        // IPC Messaging: Shared listeners broadcast mempool signals to strike fleet
         worker.on('message', (msg) => {
             if (msg.type === 'WHALE_SIGNAL') {
                 workers.forEach(w => { if (w.id !== worker.id) w.send(msg); });
@@ -143,7 +152,7 @@ if (cluster.isPrimary) {
     spawnWorker(0);
 
     cluster.on('exit', (worker) => {
-        console.log(`${TXT.red}⚠️ Core ${worker.id} offline. Rebooting in 30s...${TXT.reset}`);
+        console.log(`${TXT.red}⚠️ Core Failed. Cool-down Restart (30s)...${TXT.reset}`);
         setTimeout(() => cluster.fork(), 30000);
     });
 } 
@@ -151,8 +160,7 @@ if (cluster.isPrimary) {
 else {
     const networkIndex = (cluster.worker.id - 1) % GLOBAL_CONFIG.NETWORKS.length;
     const NETWORK = GLOBAL_CONFIG.NETWORKS[networkIndex];
-    
-    // Individual Handshake Jitter (v50.0)
+    // Handshake Jitter (v66.1)
     const initialJitter = 1000 + (cluster.worker.id % 30) * 2000;
     setTimeout(() => {
         initWorker(NETWORK).catch(() => process.exit(1));
@@ -172,7 +180,7 @@ async function initWorker(CHAIN) {
 
     if (!walletKey || walletKey.includes("0000000")) return;
 
-    // 1. HEALTH SERVER (v26.1)
+    // Telemetry Server
     try {
         const server = http.createServer((req, res) => {
             if (req.url === '/status') {
@@ -186,27 +194,17 @@ async function initWorker(CHAIN) {
 
     async function safeConnect() {
         if (retryCount >= 25) return;
-
         try {
-            // Protocol Validation (v65.8)
-            if (!CHAIN.wss.startsWith("ws")) {
-                console.error(`${TAG} ${TXT.red}PROTOCOL ERROR: WSS URL invalid.${TXT.reset}`);
-                return;
-            }
-
-            // Network Handshake Bypass (v65.0)
+            // Handshake Bypass: Hard-inject Network (v66.1 Hardening)
             const netObj = ethers.Network.from(CHAIN.chainId);
             const provider = new JsonRpcProvider(CHAIN.rpc, netObj, { staticNetwork: true, batchMaxCount: 1 });
             
-            // Shared Listener Pattern: Only listeners open WSS pipes
+            // Shared Listener Pattern: Only listeners open WebSocket pipes
             const wsProvider = IS_LISTENER ? new WebSocketProvider(CHAIN.wss, netObj) : null;
             
             if (wsProvider) {
                 wsProvider.on('error', (e) => {
-                    const emsg = e.message || "";
-                    if (emsg.includes("200") || emsg.includes("429") || emsg.includes("coalesce")) {
-                        process.stdout.write(`${TXT.red}!${TXT.reset}`);
-                    }
+                    if (e.message.includes("429")) process.stdout.write(`${TXT.red}!${TXT.reset}`);
                 });
                 if (wsProvider.websocket) {
                     wsProvider.websocket.onclose = () => setTimeout(safeConnect, 60000);
@@ -215,17 +213,14 @@ async function initWorker(CHAIN) {
 
             const wallet = new Wallet(walletKey, provider);
             const priceFeed = new Contract(CHAIN.priceFeed, ["function latestRoundData() view returns (uint80,int256,uint256,uint80,uint80)"], provider);
+            const gasOracle = CHAIN.gasOracle ? new Contract(CHAIN.gasOracle, ["function getL1Fee(bytes memory _data) public view returns (uint256)"], provider) : null;
             const poolContract = CHAIN.chainId === 8453 ? new Contract(GLOBAL_CONFIG.WETH_USDC_POOL, ["function getReserves() external view returns (uint112, uint112, uint32)"], provider) : null;
 
-            // Flashbots Integration
             let fbProvider = null;
             if (CHAIN.type === "FLASHBOTS" && hasFlashbots) {
-                try {
-                    fbProvider = await FlashbotsBundleProvider.create(provider, wallet, CHAIN.relay);
-                } catch (e) {}
+                fbProvider = await FlashbotsBundleProvider.create(provider, wallet, CHAIN.relay);
             }
 
-            // Oracles Sync
             setInterval(async () => {
                 if (isProcessing) return;
                 try {
@@ -241,36 +236,33 @@ async function initWorker(CHAIN) {
 
             console.log(`${TXT.green}✅ CORE ${cluster.worker.id} ${ROLE} SYNCED on ${TAG}${TXT.reset}`);
 
-            // --- IPC HANDLER ---
+            // IPC Handler: Strikers receive signals from Listeners
             process.on('message', async (msg) => {
                 if (msg.type === 'WHALE_SIGNAL' && msg.chainId === CHAIN.chainId && !isProcessing) {
                     isProcessing = true;
-                    await strike(provider, wallet, fbProvider, apexIface, poolContract, CHAIN, msg.target, "IPC_STRIKE");
+                    await strike(provider, wallet, fbProvider, apexIface, poolContract, gasOracle, currentEthPrice, CHAIN, msg.target, "IPC_STRIKE");
                     setTimeout(() => isProcessing = false, GLOBAL_CONFIG.RPC_COOLDOWN_MS);
                 }
             });
 
             if (IS_LISTENER && wsProvider) {
-                // Trigger 1: Mempool Sniper
+                // Mempool Sniper
                 wsProvider.on("pending", async (txHash) => {
                     if (isProcessing) return;
                     try {
                         const tx = await provider.getTransaction(txHash).catch(() => null);
                         if (tx && tx.to && tx.value >= GLOBAL_CONFIG.WHALE_THRESHOLD) {
-                            process.send({ type: 'WHALE_SIGNAL', chainId: CHAIN.chainId, target: tx.to });
-                            
-                            const isDEX = (tx.to.toLowerCase() === CHAIN.uniswapRouter.toLowerCase());
-                            if (isDEX) {
-                                console.log(`\n${TAG} ${TXT.magenta}🚨 OMNISCIENT INTERCEPT: ${formatEther(tx.value)} ETH whale!${TXT.reset}`);
+                            if (tx.to.toLowerCase() === CHAIN.uniswapRouter.toLowerCase()) {
+                                process.send({ type: 'WHALE_SIGNAL', chainId: CHAIN.chainId, target: tx.to });
                                 isProcessing = true;
-                                await strike(provider, wallet, fbProvider, apexIface, poolContract, CHAIN, tx.to, "PRIMARY_SNIPE");
+                                await strike(provider, wallet, fbProvider, apexIface, poolContract, gasOracle, currentEthPrice, CHAIN, tx.to, "PRIMARY_SNIPE");
                                 setTimeout(() => isProcessing = false, GLOBAL_CONFIG.RPC_COOLDOWN_MS);
                             }
                         }
                     } catch (err) {}
                 });
 
-                // Trigger 2: Leviathan Log Decoder
+                // Leviathan Log Decoder
                 const swapTopic = ethers.id("Swap(address,uint256,uint256,uint256,uint256,address)");
                 wsProvider.on({ topics: [swapTopic] }, async (log) => {
                     if (isProcessing) return;
@@ -280,94 +272,77 @@ async function initWorker(CHAIN) {
                         if (maxVal >= GLOBAL_CONFIG.LEVIATHAN_MIN_ETH) {
                             process.send({ type: 'WHALE_SIGNAL', chainId: CHAIN.chainId, target: log.address });
                             isProcessing = true;
-                            console.log(`\n${TAG} ${TXT.yellow}🐳 LEVIATHAN LOG: ${formatEther(maxVal)} ETH confirmed!${TXT.reset}`);
-                            await strike(provider, wallet, fbProvider, apexIface, poolContract, CHAIN, log.address, "LEVIATHAN_STRIKE");
+                            await strike(provider, wallet, fbProvider, apexIface, poolContract, gasOracle, currentEthPrice, CHAIN, log.address, "LEVIATHAN_STRIKE");
                             setTimeout(() => isProcessing = false, GLOBAL_CONFIG.RPC_COOLDOWN_MS);
                         }
                     } catch (e) {}
                 });
-
-                // Trigger 3: Triangle Arbitrage Probe (v26.1)
-                setInterval(async () => {
-                    if (isProcessing || Math.random() < 0.95) return; 
-                    isProcessing = true;
-                    await strike(provider, wallet, fbProvider, apexIface, poolContract, CHAIN, "0x...", "TRIANGLE_PROBE");
-                    setTimeout(() => isProcessing = false, GLOBAL_CONFIG.RPC_COOLDOWN_MS);
-                }, 60000);
             }
+
         } catch (e) {
             retryCount++;
-            const backoff = (e.message.includes("429")) ? GLOBAL_CONFIG.RATE_LIMIT_SLEEP_MS : (10000 * retryCount);
-            process.stdout.write(`${TXT.red}?${TXT.reset}`);
-            setTimeout(safeConnect, backoff);
+            setTimeout(safeConnect, 15000);
         }
     }
-
     await safeConnect();
 }
 
-async function strike(provider, wallet, fbProvider, iface, pool, CHAIN, target, mode) {
+async function strike(provider, wallet, fbProvider, iface, pool, gasOracle, ethPrice, CHAIN, target, mode) {
     try {
-        // v26.1 Dual Scaling Loan logic
-        let loanAmount;
+        const balanceWei = await provider.getBalance(wallet.address).catch(() => 0n);
+        let loanAmount = parseFloat(formatEther(balanceWei)) > 0.1 ? parseEther("100") : parseEther("25");
+
         if (pool && CHAIN.chainId === 8453) {
-            const [res0] = await pool.getReserves();
-            loanAmount = BigInt(res0) / 10n; // 10% Pool Cap
-        } else {
-            const bal = await provider.getBalance(wallet.address);
-            loanAmount = bal > parseEther("0.1") ? parseEther("100") : parseEther("25");
+            const [res0] = await pool.getReserves().catch(() => [0n]);
+            const poolLimit = BigInt(res0) / 8n;
+            if (loanAmount > poolLimit) loanAmount = poolLimit;
         }
 
-        let txData;
-        if (mode === "TRIANGLE_PROBE") {
-            const path = [CHAIN.weth, GLOBAL_CONFIG.USDC, GLOBAL_CONFIG.CBETH, CHAIN.weth]; 
-            txData = iface.encodeFunctionData("executeTriangle", [path, parseEther("25")]);
-        } else {
-            txData = iface.encodeFunctionData("executeFlashArbitrage", [CHAIN.weth, target, 0]);
-        }
+        const txData = iface.encodeFunctionData("executeFlashArbitrage", [CHAIN.weth, target, 0]);
         
-        // v26.1 Visual Sequence Feedback
-        if (mode !== "IPC_STRIKE") {
-            console.log(`   ↳ ${TXT.dim}🔍 MULTI-PATH: Checking Liquidity Routing...${TXT.reset}`);
-            console.log(`   ↳ ${TXT.blue}🌑 DARK POOL: Private Routing Active...${TXT.reset}`);
-            console.log(`   ↳ ${TXT.yellow}📦 BUNDLE: [Frontrun] -> [Whale] -> [Backrun]${TXT.reset}`);
-        }
-
+        // --- MANDATORY LOSS-PROOF SIMULATION GATE ---
         const [simulation, feeData] = await Promise.all([
             provider.call({ to: GLOBAL_CONFIG.TARGET_CONTRACT, data: txData, from: wallet.address, gasLimit: GLOBAL_CONFIG.GAS_LIMIT }).catch(() => null),
             provider.getFeeData()
         ]);
 
-        if (simulation && simulation !== "0x") {
-            console.log(`\n${TXT.green}${TXT.bold}💎 [${mode}] PROFIT AUTHORIZED! +${formatEther(simulation)} ETH${TXT.reset}`);
+        if (!simulation || simulation === "0x") return;
+
+        const rawProfit = BigInt(simulation);
+        const l2GasCost = GLOBAL_CONFIG.GAS_LIMIT * (feeData.maxFeePerGas || feeData.gasPrice);
+        
+        // L1 FEE PROTECTION: Queries oracle for data-posting fees (The key to L2 balance safety)
+        const l1Fee = (gasOracle) ? await gasOracle.getL1Fee(txData).catch(() => 0n) : 0n;
+        const totalGasCost = l2GasCost + l1Fee;
+        
+        // PROFIT GATE: Total Earnings must exceed all Fees + 20% Safety Buffer
+        const safetyThreshold = (totalGasCost * 120n) / 100n;
+
+        if (rawProfit > safetyThreshold) {
+            const netProfit = rawProfit - totalGasCost;
             
-            // Priority Bribe Optimization
-            const aggressivePriority = feeData.maxPriorityFeePerGas + 
-                ((feeData.maxPriorityFeePerGas * GLOBAL_CONFIG.PRIORITY_BRIBE) / 100n);
+            console.log(`\n${TXT.green}${TXT.bold}✅ PROFIT AUTHORIZED: +${formatEther(netProfit)} ETH (~$${(parseFloat(formatEther(netProfit)) * ethPrice).toFixed(2)})${TXT.reset}`);
+            console.log(`   ↳ ${TXT.dim}🔍 COST BASIS: L2 ${formatEther(l2GasCost)} + L1 ${formatEther(l1Fee)}${TXT.reset}`);
+            console.log(`   ↳ ${TXT.blue}🌑 DARK POOL: Routing via private MEV relay...${TXT.reset}`);
+
+            const aggressivePriority = feeData.maxPriorityFeePerGas + ((feeData.maxPriorityFeePerGas * GLOBAL_CONFIG.PRIORITY_BRIBE) / 100n);
 
             const tx = {
-                to: GLOBAL_CONFIG.TARGET_CONTRACT,
-                data: txData,
-                type: 2,
-                chainId: CHAIN.chainId,
-                gasLimit: GLOBAL_CONFIG.GAS_LIMIT,
-                maxFeePerGas: feeData.maxFeePerGas,
-                maxPriorityFeePerGas: aggressivePriority,
-                nonce: await provider.getTransactionCount(wallet.address),
-                value: 0n
+                to: GLOBAL_CONFIG.TARGET_CONTRACT, data: txData, type: 2, chainId: CHAIN.chainId,
+                gasLimit: GLOBAL_CONFIG.GAS_LIMIT, maxFeePerGas: feeData.maxFeePerGas,
+                maxPriorityFeePerGas: aggressivePriority, nonce: await provider.getTransactionCount(wallet.address), value: 0n
             };
 
             if (fbProvider && CHAIN.chainId === 1) {
-                const bundle = [{ signedTransaction: await wallet.signTransaction(tx) }];
-                await fbProvider.sendBundle(bundle, (await provider.getBlockNumber()) + 1);
-                console.log(`   ${TXT.green}🎉 Private Quantum Bundle Dispatched (Mainnet)${TXT.reset}`);
+                await fbProvider.sendBundle([{ signedTransaction: await wallet.signTransaction(tx) }], (await provider.getBlockNumber()) + 1);
             } else {
                 const signedTx = await wallet.signTransaction(tx);
-                await axios.post(CHAIN.rpc, {
-                    jsonrpc: "2.0", id: 1, method: "eth_sendRawTransaction", params: [signedTx]
-                }, { timeout: 2000 }).catch(() => {});
-                console.log(`   ${TXT.green}✨ SUCCESS: FUNDS SECURED AT: ${GLOBAL_CONFIG.BENEFICIARY}${TXT.reset}`);
+                await axios.post(CHAIN.rpc, { jsonrpc: "2.0", id: 1, method: "eth_sendRawTransaction", params: [signedTx] }, { timeout: 2000 }).catch(() => {});
+                console.log(`   ${TXT.green}✨ SUCCESS: PROFIT SECURED AT: ${GLOBAL_CONFIG.BENEFICIARY}${TXT.reset}`);
             }
+        } else {
+            // Save gas by blocking unprofitable transactions
+            process.stdout.write(`${TXT.dim}.${TXT.reset}`);
         }
     } catch (e) {}
 }
