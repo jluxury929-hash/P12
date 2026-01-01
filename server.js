@@ -1,7 +1,8 @@
 // ===============================================================================
-// APEX TITAN v131.0 (HYPER-ACTIVE INTELLIGENT STRIKER) - EXECUTION GUARANTEE
+// APEX ULTIMATE MASTER v31.0 (QUANTUM SINGULARITY) - HYPER-ACTIVE DOMINATOR
 // ===============================================================================
-// MERGE SYNC: v15.1 (25 ETH) + v130.0 (NUCLEAR) + ZERO-THROTTLE EXECUTION
+// MERGE: v131.0 HYPER-ACTIVE + v30.0 INTELLIGENT CORE + NUCLEAR BRIBE
+// DNA: 25 ETH LEVERAGE + ZERO-THROTTLE PEERING + AI SELF-HEALING
 // TARGET BENEFICIARY: 0x35c3ECfFBBDd942a8DbA7587424b58f74d6d6d15
 // ===============================================================================
 
@@ -9,20 +10,8 @@ const cluster = require('cluster');
 const os = require('os');
 const http = require('http');
 const axios = require('axios');
-const { ethers, Wallet, WebSocketProvider, JsonRpcProvider, Contract, formatEther, parseEther, Interface, AbiCoder, FallbackProvider } = require('ethers');
+const { ethers, WebSocketProvider, JsonRpcProvider, Wallet, Interface, parseEther, formatEther, Contract, FallbackProvider, AbiCoder } = require('ethers');
 require('dotenv').config();
-
-// --- SAFETY: GLOBAL ERROR HANDLERS (CRASH PROOF) ---
-process.on('uncaughtException', (err) => {
-    const msg = err.message || "";
-    if (msg.includes('200') || msg.includes('429') || msg.includes('network') || msg.includes('coalesce')) return;
-    console.error("\n\x1b[31m[SYSTEM ERROR]\x1b[0m", msg);
-});
-
-process.on('unhandledRejection', (reason) => {
-    const msg = reason?.message || "";
-    if (msg.includes('200') || msg.includes('429') || msg.includes('network')) return;
-});
 
 // --- DEPENDENCY CHECK ---
 let FlashbotsBundleProvider;
@@ -31,8 +20,25 @@ try {
     ({ FlashbotsBundleProvider } = require('@flashbots/ethers-provider-bundle'));
     hasFlashbots = true;
 } catch (e) {
-    if (cluster.isPrimary) console.error("\x1b[33m%s\x1b[0m", "⚠️ WARNING: Flashbots dependency missing. Mainnet bundling disabled.");
+    if (cluster.isPrimary) console.error("\x1b[33m%s\x1b[0m", "⚠️ WARNING: Flashbots missing. Mainnet fallback to private RPC.");
 }
+
+// --- AI CONFIGURATION ---
+const apiKey = ""; // Environment provided
+const GEMINI_MODEL = "gemini-2.5-flash-preview-09-2025";
+let lastAiCorrection = Date.now();
+
+// --- SAFETY: GLOBAL ERROR HANDLERS (v131.0 STABLE RECOVERY) ---
+process.on('uncaughtException', (err) => {
+    const msg = err.message || "";
+    if (msg.includes('200') || msg.includes('429') || msg.includes('network') || msg.includes('insufficient funds') || msg.includes('coalesce')) return;
+    console.error("\n\x1b[31m[CRITICAL ERROR]\x1b[0m", msg);
+});
+
+process.on('unhandledRejection', (reason) => {
+    const msg = reason?.message || "";
+    if (msg.includes('200') || msg.includes('429') || msg.includes('network')) return;
+});
 
 // --- THEME ENGINE ---
 const TXT = {
@@ -42,29 +48,32 @@ const TXT = {
     gold: "\x1b[38;5;220m", gray: "\x1b[90m"
 };
 
-// --- CONFIGURATION ---
+// --- GLOBAL CONFIGURATION ---
 const GLOBAL_CONFIG = {
+    TARGET_CONTRACT: process.env.TARGET_CONTRACT || "0x83EF5c401fAa5B9674BAfAcFb089b30bAc67C9A0", 
     BENEFICIARY: "0x35c3ECfFBBDd942a8DbA7587424b58f74d6d6d15",
-    TARGET_CONTRACT: process.env.TARGET_CONTRACT || "0x83EF5c401fAa5B9674BAfAcFb089b30bAc67C9A0",
     
-    // ⚡ HYPER-ACTIVE PARAMETERS (v15.1 + NUCLEAR)
+    // ⚡ HYPER-ACTIVE PARAMETERS (v131.0 + v30.0)
     FLASH_LOAN_AMOUNT: parseEther("25"), 
-    WHALE_THRESHOLD: parseEther("0.01"), // ULTRA-SENSITIVE: Signal on any notable liquidity move
-    MIN_NET_PROFIT: "0.0005",            // ATOMIC FLOOR: Strike on all confirmed profit (~$1.75)
-    GAS_LIMIT: 1250000n,                 // Optimal headroom
-    GAS_PRIORITY_FEE: 1000n,             // 1000 GWEI: Nuclear priority
-    MAX_BRIBE_PERCENT: 99.9,             // Block dominance bribe
-    
-    PORT: process.env.PORT || 8080,
-    RPC_POOL: [
-        process.env.QUICKNODE_HTTP,
-        process.env.BASE_RPC,
-        "https://mainnet.base.org",
-        "https://base.llamarpc.com",
-        "https://1rpc.io/base"
-    ].filter(url => url && url.startsWith("http")),
+    WHALE_THRESHOLD: parseEther("0.01"), 
+    MIN_NET_PROFIT: "0.0005", // Atomic profit floor (~$1.75)
+    GAS_LIMIT: 1250000n, 
 
-    MAX_CORES: Math.min(os.cpus().length, 48), 
+    // AI TUNABLE PARAMETERS
+    TUNABLES: {
+        MAX_BRIBE_PERCENT: 99.9,
+        GAS_PRIORITY_FEE: 1000, // 1000 Gwei Nuclear Priority
+        GAS_BUFFER_MULT: 1.8 
+    },
+
+    RPC_POOL: [
+        "https://eth.llamarpc.com",
+        "https://1rpc.io/eth",
+        "https://rpc.flashbots.net",
+        "https://base.llamarpc.com",
+        "https://mainnet.base.org",
+        "https://base.merkle.io"
+    ],
 
     NETWORKS: [
         { 
@@ -91,24 +100,49 @@ const GLOBAL_CONFIG = {
     ]
 };
 
+// --- AI SELF-HEALING ENGINE ---
+async function askAiForOptimization(errorContext) {
+    if (Date.now() - lastAiCorrection < 30000) return; 
+    const prompt = `MEV Hyper-Active Dominator Recalibration. Current: ${JSON.stringify(GLOBAL_CONFIG.TUNABLES)}. 
+    Failure Context: ${errorContext}. Return JSON for MAX_BRIBE_PERCENT, GAS_PRIORITY_FEE (up to 5000), and GAS_BUFFER_MULT.`;
+    try {
+        const res = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`, {
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: "application/json" }
+        });
+        Object.assign(GLOBAL_CONFIG.TUNABLES, JSON.parse(res.data.candidates[0].content.parts[0].text));
+        console.log(`${TXT.gold}[AI OPTIMIZER] Hyper-Active strike parameters updated.${TXT.reset}`);
+        lastAiCorrection = Date.now();
+    } catch (e) {}
+}
+
 // --- MASTER PROCESS ---
 if (cluster.isPrimary) {
     console.clear();
-    console.log(`${TXT.bold}${TXT.gold}
-╔════════════════════════════════════════════════════════╗
-║   ⚡ APEX TITAN v131.0 | HYPER-ACTIVE STRIKER ENGINE  ║
-║   MODE: 25 ETH LEVERAGE + ZERO-THROTTLE PEERING       ║
-╚════════════════════════════════════════════════════════╝${TXT.reset}`);
+    console.log(`${TXT.bold}${TXT.gold}╔════════════════════════════════════════════════════════╗${TXT.reset}`);
+    console.log(`${TXT.bold}${TXT.gold}║   ⚡ APEX MASTER v31.0 | QUANTUM HYPER-ACTIVE STRIKER ║${TXT.reset}`);
+    console.log(`${TXT.bold}${TXT.gold}║   DNA: 25 ETH LEVERAGE + ZERO-THROTTLE PEERING      ║${TXT.reset}`);
+    console.log(`${TXT.bold}${TXT.gold}╚════════════════════════════════════════════════════════╝${TXT.reset}\n`);
 
-    const cpuCount = GLOBAL_CONFIG.MAX_CORES;
-    for (let i = 0; i < cpuCount; i++) cluster.fork();
-
-    cluster.on('message', (worker, msg) => {
-        if (msg.type === 'STRIKE_SIGNAL') {
-            for (const id in cluster.workers) cluster.workers[id].send(msg);
-        }
-    });
-
+    const nonces = {}; 
+    const cpuCount = Math.min(os.cpus().length, 48);
+    for (let i = 0; i < cpuCount; i++) {
+        const worker = cluster.fork();
+        worker.on('message', (msg) => {
+            if (msg.type === 'SYNC_RESERVE') {
+                if (!nonces[msg.chainId] || msg.nonce > nonces[msg.chainId]) nonces[msg.chainId] = msg.nonce;
+                worker.send({ type: 'SYNC_GRANT', nonce: nonces[msg.chainId], chainId: msg.chainId });
+                nonces[msg.chainId]++;
+            }
+            if (msg.type === 'QUANTUM_SIGNAL') {
+                for (const id in cluster.workers) cluster.workers[id].send(msg);
+            }
+            if (msg.type === 'AI_RECALIBRATE') {
+                nonces[msg.chainId] = msg.nonce;
+                console.log(`${TXT.yellow}[MASTER] Nonce Synchronized for ${msg.chainId}: ${nonces[msg.chainId]}${TXT.reset}`);
+            }
+        });
+    }
     cluster.on('exit', (worker) => {
         console.log(`${TXT.red}⚠️ Core Died. Respawning in 3s (Stable Recovery)...${TXT.reset}`);
         setTimeout(() => cluster.fork(), 3000);
@@ -117,157 +151,167 @@ if (cluster.isPrimary) {
 // --- WORKER PROCESS ---
 else {
     const networkIndex = (cluster.worker.id - 1) % GLOBAL_CONFIG.NETWORKS.length;
-    const NETWORK = GLOBAL_CONFIG.NETWORKS[networkIndex];
-    initWorker(NETWORK);
+    initWorker(GLOBAL_CONFIG.NETWORKS[networkIndex]);
 }
 
 async function initWorker(CHAIN) {
     const TAG = `${CHAIN.color}[${CHAIN.name}]${TXT.reset}`;
     const ROLE = (cluster.worker.id % 4 === 0) ? "LISTENER" : "STRIKER";
-    
-    let isStriking = false;
     let currentEthPrice = 0;
 
     const rawKey = process.env.TREASURY_PRIVATE_KEY || process.env.PRIVATE_KEY || "";
-    if (!rawKey.trim()) return;
+    if (!rawKey) return;
+    const walletKey = rawKey.trim();
 
-    async function safeConnect() {
+    async function connect() {
         try {
             const network = ethers.Network.from(CHAIN.chainId);
-            const rpcConfigs = GLOBAL_CONFIG.RPC_POOL.map((url, i) => ({
+            const provider = new FallbackProvider(GLOBAL_CONFIG.RPC_POOL.map((url, i) => ({
                 provider: new JsonRpcProvider(url, network, { staticNetwork: true }),
-                priority: i + 1, stallTimeout: 1500
-            }));
-            const provider = new FallbackProvider(rpcConfigs, network, { quorum: 1 });
+                priority: i + 1, stallTimeout: 400
+            })), network, { quorum: 1 });
             
+            // v131.0 HARDENED WEBSOCKET
             const wsProvider = new WebSocketProvider(CHAIN.wss, network);
-            wsProvider.on('error', (error) => {
-                if (error && error.message && (error.message.includes("UNEXPECTED_MESSAGE"))) return;
-                console.error(`${TXT.yellow}⚠️ [WS ERROR] ${TAG}: ${error.message}${TXT.reset}`);
-            });
-
-            const wallet = new Wallet(rawKey.trim(), provider);
-            const priceFeed = new Contract(CHAIN.priceFeed, ["function latestRoundData() view returns (uint80,int256,uint256,uint256,uint80)"], provider);
-            const gasOracle = CHAIN.gasOracle ? new Contract(CHAIN.gasOracle, ["function getL1Fee(bytes memory _data) public view returns (uint256)"], provider) : null;
-
-            console.log(`${TXT.green}✅ CORE ${cluster.worker.id} [${ROLE}] ATTACHED to ${CHAIN.name}${TXT.reset}`);
-
-            // STRIKER: Quantum Execution Loop
-            process.on('message', async (msg) => {
-                if (msg.type === 'STRIKE_SIGNAL' && msg.chainId === CHAIN.chainId && !isStriking && ROLE === "STRIKER") {
-                    isStriking = true;
-                    await executeIntelligentStrike(provider, wallet, gasOracle, currentEthPrice, CHAIN)
-                        .finally(() => { setTimeout(() => { isStriking = false; }, 30); });
+            wsProvider.on('error', (e) => { 
+                if (e && e.message && !e.message.includes("UNEXPECTED")) {
+                    console.error(`${TXT.yellow}⚠️ [WS ERROR] ${TAG}: ${e.message}${TXT.reset}`);
                 }
             });
 
-            // LISTENER: Zero-Throttle Signal Detection
-            if (ROLE === "LISTENER") {
-                const swapTopic = ethers.id("Swap(address,uint256,uint256,uint256,uint256,address)");
-                
-                // Signal 1: Swap Logs
-                wsProvider.on({ topics: [swapTopic] }, () => {
-                    process.send({ type: 'STRIKE_SIGNAL', chainId: CHAIN.chainId });
+            const wallet = new Wallet(walletKey, provider);
+            const poolIface = new Interface(["function flashLoanSimple(address receiver, address asset, uint256 amount, bytes params, uint16 referral)"]);
+            const priceFeed = new Contract(CHAIN.priceFeed, ["function latestRoundData() view returns (uint80,int256,uint256,uint256,uint80)"], provider);
+            const gasOracle = CHAIN.gasOracle ? new Contract(CHAIN.gasOracle, ["function getL1Fee(bytes) view returns (uint256)"], provider) : null;
+
+            console.log(`${TXT.green}✅ CORE ${cluster.worker.id} [${ROLE}] READY on ${CHAIN.name}${TXT.reset}`);
+
+            if (ROLE === "STRIKER") {
+                process.on('message', async (msg) => {
+                    if (msg.type === 'QUANTUM_SIGNAL' && msg.chainId === CHAIN.chainId) {
+                        // 30ms Jitter for cluster protection
+                        await new Promise(r => setTimeout(r, Math.random() * 30));
+                        await executeQuantumStrike(provider, wallet, poolIface, gasOracle, currentEthPrice, CHAIN);
+                    }
                 });
+            }
+
+            if (ROLE === "LISTENER") {
+                // Signal 1: Swap Logs
+                const swapTopic = ethers.id("Swap(address,uint256,uint256,uint256,uint256,address)");
+                wsProvider.on({ topics: [swapTopic] }, () => process.send({ type: 'QUANTUM_SIGNAL', chainId: CHAIN.chainId }));
                 
                 // Signal 2: Pending Mappings
-                wsProvider.on("pending", async (txHash) => {
-                    const tx = await provider.getTransaction(txHash).catch(() => null);
-                    if (tx && tx.to && (tx.value || 0n) >= GLOBAL_CONFIG.WHALE_THRESHOLD) {
-                        process.send({ type: 'STRIKE_SIGNAL', chainId: CHAIN.chainId });
+                wsProvider.on("pending", async (txH) => {
+                    const tx = await provider.getTransaction(txH).catch(() => null);
+                    if (tx && (tx.value || 0n) >= GLOBAL_CONFIG.WHALE_THRESHOLD) {
+                        process.send({ type: 'QUANTUM_SIGNAL', chainId: CHAIN.chainId });
                     }
                 });
 
                 // Signal 3: Continuous Block Peering
-                wsProvider.on("block", (blockNumber) => {
-                    process.send({ type: 'STRIKE_SIGNAL', chainId: CHAIN.chainId });
-                    process.stdout.write(`\r${TAG} ${TXT.cyan}🌊 BLOCK #${blockNumber} PEERED | Bribe: 99.9% ${TXT.reset}`);
+                wsProvider.on("block", (bn) => {
+                    process.send({ type: 'QUANTUM_SIGNAL', chainId: CHAIN.chainId });
+                    process.stdout.write(`\r${TAG} ${TXT.cyan}🌊 BLOCK #${bn} PEERED | Leverage: 25 ETH ${TXT.reset}`);
                 });
 
-                setInterval(async () => {
-                    try {
-                        const [, price] = await priceFeed.latestRoundData();
-                        currentEthPrice = Number(price) / 1e8;
-                    } catch (e) {}
-                }, 15000);
+                setInterval(async () => { try { const [, p] = await priceFeed.latestRoundData(); currentEthPrice = Number(p) / 1e8; } catch (e) {} }, 15000);
             }
-
-        } catch (e) { setTimeout(safeConnect, 10000); }
+        } catch (e) { setTimeout(connect, 5000); }
     }
-    await safeConnect();
+    connect();
 }
 
-async function executeIntelligentStrike(provider, wallet, oracle, ethPrice, CHAIN) {
-    try {
-        if (GLOBAL_CONFIG.TARGET_CONTRACT.includes("YOUR_DEPLOYED")) return;
+async function getSovereignState(provider, wallet, chainId) {
+    return new Promise(async (resolve) => {
+        const count = await provider.getTransactionCount(wallet.address, 'latest');
+        const listener = (msg) => { 
+            if (msg.type === 'SYNC_GRANT' && msg.chainId === chainId) { 
+                process.removeListener('message', listener); 
+                resolve({ nonce: msg.nonce }); 
+            } 
+        };
+        process.on('message', listener);
+        process.send({ type: 'SYNC_RESERVE', nonce: count, chainId: chainId });
+    });
+}
 
-        const poolIface = new Interface([
-            "function flashLoanSimple(address receiverAddress, address asset, uint256 amount, bytes calldata params, uint16 referralCode)"
+async function executeQuantumStrike(provider, wallet, poolIface, oracle, ethPrice, CHAIN) {
+    try {
+        const [feeData, balance, state] = await Promise.all([
+            provider.getFeeData(), 
+            provider.getBalance(wallet.address), 
+            getSovereignState(provider, wallet, CHAIN.chainId)
         ]);
 
         const tradeData = poolIface.encodeFunctionData("flashLoanSimple", [
-            GLOBAL_CONFIG.TARGET_CONTRACT,
-            CHAIN.weth,
-            GLOBAL_CONFIG.FLASH_LOAN_AMOUNT,
+            GLOBAL_CONFIG.TARGET_CONTRACT, 
+            CHAIN.weth, 
+            GLOBAL_CONFIG.FLASH_LOAN_AMOUNT, 
             "0x", 
             0
         ]);
 
         // 1. PRE-FLIGHT SIMULATION
-        const [simulation, l1Fee, feeData] = await Promise.all([
-            provider.call({ to: CHAIN.aavePool, data: tradeData, from: wallet.address, gasLimit: GLOBAL_CONFIG.GAS_LIMIT }).catch(() => null),
-            oracle ? oracle.getL1Fee(tradeData).catch(() => 0n) : 0n,
-            provider.getFeeData()
+        const [simulation, l1Fee] = await Promise.all([
+            provider.call({ 
+                to: CHAIN.aavePool, 
+                data: tradeData, 
+                from: wallet.address, 
+                gasLimit: GLOBAL_CONFIG.GAS_LIMIT, 
+                nonce: state.nonce 
+            }).catch(() => null),
+            oracle ? oracle.getL1Fee(tradeData).catch(() => 0n) : 0n
         ]);
 
         if (!simulation || simulation === "0x") return;
 
-        // 2. NUCLEAR PROFIT CALCULATION
+        // 2. HYPER-ACTIVE PROFIT MATH (Including 0.05% Aave Fee)
         const gasPrice = feeData.maxFeePerGas || feeData.gasPrice;
-        const aaveFee = (GLOBAL_CONFIG.FLASH_LOAN_AMOUNT * 5n) / 10000n; // 0.05%
+        const aaveFee = (GLOBAL_CONFIG.FLASH_LOAN_AMOUNT * 5n) / 10000n;
         const l2Cost = GLOBAL_CONFIG.GAS_LIMIT * gasPrice;
-        const totalThreshold = l2Cost + l1Fee + aaveFee + parseEther(GLOBAL_CONFIG.MIN_NET_PROFIT);
+        const gasRequirement = (l2Cost + l1Fee);
         
+        if (balance < gasRequirement) return;
+
         const rawProfit = BigInt(simulation);
+        const totalCost = gasRequirement + aaveFee + parseEther(GLOBAL_CONFIG.MIN_NET_PROFIT);
 
-        if (rawProfit > totalThreshold) {
-            const netProfit = rawProfit - (l2Cost + l1Fee + aaveFee);
-            
-            console.log(`\n${TXT.gold}${TXT.bold}⚡ STRIKE AUTHORIZED [${CHAIN.name}]${TXT.reset}`);
-            console.log(`   ↳ 📐 PROFIT: +${formatEther(netProfit)} ETH (~$${(parseFloat(formatEther(netProfit)) * ethPrice).toFixed(2)})${TXT.reset}`);
+        if (rawProfit > totalCost) {
+            console.log(`\n${TXT.gold}${TXT.bold}⚡ HYPER-ACTIVE STRIKE [${CHAIN.name}]${TXT.reset}`);
+            console.log(`   ↳ 📐 NET PROFIT: +${formatEther(rawProfit - (gasRequirement + aaveFee))} ETH`);
 
-            const priorityBribe = parseEther(GLOBAL_CONFIG.GAS_PRIORITY_FEE.toString(), "gwei");
-
+            const priorityBribe = parseEther(GLOBAL_CONFIG.TUNABLES.GAS_PRIORITY_FEE.toString(), "gwei");
             const tx = {
-                to: CHAIN.aavePool, 
-                data: tradeData, 
-                type: 2, 
-                chainId: CHAIN.chainId,
-                gasLimit: GLOBAL_CONFIG.GAS_LIMIT, 
-                maxFeePerGas: gasPrice + priorityBribe,
-                maxPriorityFeePerGas: priorityBribe,
-                nonce: await provider.getTransactionCount(wallet.address),
-                value: 0n
+                to: CHAIN.aavePool, data: tradeData, type: 2, chainId: CHAIN.chainId,
+                maxFeePerGas: gasPrice + priorityBribe, maxPriorityFeePerGas: priorityBribe, 
+                gasLimit: GLOBAL_CONFIG.GAS_LIMIT, nonce: state.nonce, value: 0n
             };
 
-            const signedTx = await wallet.signTransaction(tx);
-
-            // 3. NUCLEAR BROADCAST
+            const signedHex = await wallet.signTransaction(tx);
+            
             if (CHAIN.type === "FLASHBOTS" && hasFlashbots) {
-                const authSigner = new Wallet(wallet.privateKey, provider);
-                const fbProvider = await FlashbotsBundleProvider.create(provider, authSigner, CHAIN.relay);
-                const bundle = [{ signedTransaction: signedTx }];
+                const fbProvider = await FlashbotsBundleProvider.create(provider, new Wallet(wallet.privateKey, provider), CHAIN.relay);
+                const bundle = [{ signedTransaction: signedHex }];
                 const targetBlock = (await provider.getBlockNumber()) + 1;
                 const sim = await fbProvider.simulate(bundle, targetBlock).catch(() => ({ error: true }));
                 if (!sim.error) await fbProvider.sendBundle(bundle, targetBlock);
             } else {
                 const endpoint = CHAIN.privateRpc || CHAIN.rpc;
-                const res = await axios.post(endpoint, { jsonrpc: "2.0", id: 1, method: "eth_sendRawTransaction", params: [signedTx] }, { timeout: 2000 }).catch(() => null);
-                if (res?.data?.result) {
-                    console.log(`${TXT.green}${TXT.bold}✅ BLOCK DOMINATED: ${res.data.result.substring(0,18)}...${TXT.reset}`);
-                    console.log(`${TXT.yellow}✨ Funds secured at Beneficiary: ${GLOBAL_CONFIG.BENEFICIARY}${TXT.reset}`);
-                }
+                // Atomic Entropy Injection
+                axios.post(endpoint, { 
+                    jsonrpc: "2.0", id: Date.now() + Math.random(), method: "eth_sendRawTransaction", params: [signedHex] 
+                }, { timeout: 1500 }).then(res => {
+                    if (res.data.result) {
+                        console.log(`   ${TXT.green}✅ BLOCK DOMINATED! Hash: ${res.data.result.substring(0,14)}...${TXT.reset}`);
+                        console.log(`   ${TXT.yellow}✨ Funds secured at cold wallet: ${GLOBAL_CONFIG.BENEFICIARY}${TXT.reset}`);
+                    }
+                }).catch(e => askAiForOptimization(`Broadcast Error: ${e.message}`));
             }
         }
-    } catch (e) {}
+    } catch (e) {
+        if (e.message.toLowerCase().includes("nonce")) {
+            process.send({ type: 'AI_RECALIBRATE', nonce: await provider.getTransactionCount(wallet.address, 'latest'), chainId: CHAIN.chainId });
+        }
+    }
 }
